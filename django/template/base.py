@@ -1178,13 +1178,16 @@ class Library(object):
         def dec(func):
             params, varargs, varkw, defaults = getargspec(func)
 
+            # Cache nodelist parsed from template here.
+            dec.nodelist = None
+
             class InclusionNode(TagHelperNode):
 
                 def render(self, context):
                     resolved_args, resolved_kwargs = self.get_resolved_arguments(context)
                     _dict = func(*resolved_args, **resolved_kwargs)
 
-                    if not getattr(self, 'nodelist', False):
+                    if dec.nodelist is None:
                         from django.template.loader import get_template, select_template
                         if isinstance(file_name, Template):
                             t = file_name
@@ -1192,7 +1195,7 @@ class Library(object):
                             t = select_template(file_name)
                         else:
                             t = get_template(file_name)
-                        self.nodelist = t.nodelist
+                        dec.nodelist = t.nodelist
                     new_context = context_class(_dict, **{
                         'autoescape': context.autoescape,
                         'current_app': context.current_app,
@@ -1206,7 +1209,7 @@ class Library(object):
                     csrf_token = context.get('csrf_token', None)
                     if csrf_token is not None:
                         new_context['csrf_token'] = csrf_token
-                    return self.nodelist.render(new_context)
+                    return dec.nodelist.render(new_context)
 
             function_name = (name or
                 getattr(func, '_decorated_function', func).__name__)
